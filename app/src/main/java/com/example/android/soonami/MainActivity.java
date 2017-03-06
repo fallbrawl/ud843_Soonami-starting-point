@@ -18,8 +18,10 @@ package com.example.android.soonami;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -40,10 +42,14 @@ import java.text.SimpleDateFormat;
  */
 public class MainActivity extends AppCompatActivity {
 
-    /** Tag for the log messages */
+    /**
+     * Tag for the log messages
+     */
     public static final String LOG_TAG = MainActivity.class.getSimpleName();
 
-    /** URL to query the USGS dataset for earthquake information */
+    /**
+     * URL to query the USGS dataset for earthquake information
+     */
     private static final String USGS_REQUEST_URL =
             "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2014-01-01&endtime=2014-12-01&minmagnitude=7";
 
@@ -60,7 +66,11 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Update the screen to display information from the given {@link Event}.
      */
+
     private void updateUi(Event earthquake) {
+        if (earthquake == null){
+            return;
+        }
         // Display the earthquake title in the UI
         TextView titleTextView = (TextView) findViewById(R.id.title);
         titleTextView.setText(earthquake.title);
@@ -156,25 +166,37 @@ public class MainActivity extends AppCompatActivity {
             String jsonResponse = "";
             HttpURLConnection urlConnection = null;
             InputStream inputStream = null;
-            try {
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.setReadTimeout(10000 /* milliseconds */);
-                urlConnection.setConnectTimeout(15000 /* milliseconds */);
-                urlConnection.connect();
-                inputStream = urlConnection.getInputStream();
-                jsonResponse = readFromStream(inputStream);
-            } catch (IOException e) {
-                // TODO: Handle the exception
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-                if (inputStream != null) {
-                    // function must handle java.io.IOException here
-                    inputStream.close();
+
+            if (url != null) {
+                try {
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.setReadTimeout(10000 /* milliseconds */);
+                    urlConnection.setConnectTimeout(15000 /* milliseconds */);
+                    urlConnection.connect();
+                    if (urlConnection.getResponseCode() >= 200 && urlConnection.getResponseCode() < 300) {
+                        inputStream = urlConnection.getInputStream();
+                        jsonResponse = readFromStream(inputStream);
+                    } else {
+                        jsonResponse = "";
+                    }
+
+                } catch (IOException e) {
+                    // TODO: Handle the exception
+                } finally {
+                    if (urlConnection != null) {
+                        urlConnection.disconnect();
+                    }
+                    if (inputStream != null) {
+                        // function must handle java.io.IOException here
+                        inputStream.close();
+                    }
                 }
             }
+            else {
+                Toast.makeText(MainActivity.this, "wow", Toast.LENGTH_LONG).show();
+            }
+
             return jsonResponse;
         }
 
@@ -201,6 +223,9 @@ public class MainActivity extends AppCompatActivity {
          * about the first earthquake from the input earthquakeJSON string.
          */
         private Event extractFeatureFromJson(String earthquakeJSON) {
+            if (TextUtils.isEmpty(earthquakeJSON)){
+                return null;
+            }
             try {
                 JSONObject baseJsonResponse = new JSONObject(earthquakeJSON);
                 JSONArray featureArray = baseJsonResponse.getJSONArray("features");
